@@ -8,7 +8,7 @@ Windows 构建附带一个轻量控制面板 GUI（底部两键：启动↔停�
 
 ```text
 server/
-  go.mod          Go 模块（module github.com/Ming-QWQ520/dot-motion-builder/server）
+  go.mod          Go 模块（module github.com/Ming-QWQ520/dot-motion-builder-desktop/server）
   main.go         HTTP 服务：静态托管 + gzip + 缓存策略 + 健康检查 API + appServer 生命周期
   gui_windows.go  Windows 控制面板 GUI（纯 Win32 syscall，含 -H windowsgui 构建）
   gui_stub.go     非 Windows 平台的 runGUI 存根

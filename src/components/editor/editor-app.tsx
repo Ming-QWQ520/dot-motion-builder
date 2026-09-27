@@ -841,7 +841,7 @@ export function EditorApp() {
       <div className="builder-topbar">
         <a
           className="github-entry"
-          href="https://github.com/Ming-QWQ520/dot-motion-builder"
+          href="https://github.com/Ming-QWQ520/dot-motion-builder-desktop"
           target="_blank"
           rel="noreferrer"
           aria-label="Open Dot Motion Builder on GitHub"

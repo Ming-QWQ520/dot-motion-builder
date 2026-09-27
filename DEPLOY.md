@@ -3,7 +3,7 @@
 Dot Motion Builder is currently available at:
 
 - [Live editor](https://dot-motion-builder.vercel.app/editor)
-- [GitHub repository](https://github.com/Ming-QWQ520/dot-motion-builder)
+- [GitHub repository](https://github.com/Ming-QWQ520/dot-motion-builder-desktop)
 
 The application is a client-side Next.js project. It has no required backend service, database, account system, or environment variable. Projects are stored in each visitor's browser using `localStorage`.
 
