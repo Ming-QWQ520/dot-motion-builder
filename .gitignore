@@ -1,0 +1,23 @@
+node_modules
+.next
+out
+dist
+coverage
+
+.DS_Store
+*.log
+*.tsbuildinfo
+
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+.gstack
+backups
+.vercel
+
+# Go single-binary integration
+server/frontend
+bin
