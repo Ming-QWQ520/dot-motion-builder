@@ -48,7 +48,7 @@ var frontend embed.FS
 // appVersion is overridden at build time with:
 //
 //	-ldflags "-X main.appVersion=1.2.3"
-var appVersion = "0.1.0"
+var appVersion = "0.1.1"
 
 // appName is used in logs, banners, and the version API.
 const appName = "dot-motion-builder"

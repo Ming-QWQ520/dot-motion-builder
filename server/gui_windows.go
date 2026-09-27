@@ -1,9 +1,11 @@
 //go:build windows
 
-// Minimal Win32 control panel for the Windows build: start / stop the local
-// server, open the editor in the browser, and exit. Implemented with raw
-// user32/kernel32 syscalls so the binary stays dependency-free and keeps
-// cross-compiling with CGO_ENABLED=0.
+// Minimal Win32 control panel for the Windows build. The bottom row holds
+// exactly two buttons: the left one starts the local server and flips to
+// "stop" while it is running; the right one quits. While the server runs,
+// the status line doubles as a link — clicking it re-opens the editor.
+// Implemented with raw user32/kernel32 syscalls so the binary stays
+// dependency-free and keeps cross-compiling with CGO_ENABLED=0.
 //
 // Build with `-ldflags "-H windowsgui"` to run without a console window.
 
@@ -51,16 +53,20 @@ var (
 	procMessageBoxW          = user32.NewProc("MessageBoxW")
 	procShellExecuteW        = shell32.NewProc("ShellExecuteW")
 	procCreateFontIndirectW  = gdi32.NewProc("CreateFontIndirectW")
+	procAdjustWindowRectEx   = user32.NewProc("AdjustWindowRectEx")
 )
 
 const (
 	className = "DotMotionBuilderPanel"
 
-	idPortEdit = 101
-	idBtnStart = 110
-	idBtnStop  = 111
-	idBtnOpen  = 112
-	idBtnExit  = 113
+	idPortEdit   = 101
+	idBtnToggle  = 110 // 启动服务 <-> 停止服务
+	idBtnExit    = 113
+	idStatusLine = 120 // clickable status line (re-opens the editor)
+
+	// Desired client area of the panel window.
+	clientWidth  = 420
+	clientHeight = 232
 
 	wsOverlappedWindow = 0x00CF0000
 	wsVisible          = 0x10000000
@@ -71,12 +77,17 @@ const (
 
 	esNumber = 0x2000
 
+	ssNotify      = 0x0001
+	ssEditControl = 0x2000
+
+	bsDefPushButton = 0x0001
+
 	wmDestroy = 0x0002
 	wmClose   = 0x0010
 	wmCommand = 0x0111
 	wmSetFont = 0x0030
 
-	bnClicked = 0
+	bnClicked = 0 // also STN_CLICKED for SS_NOTIFY statics
 
 	swShow = 5
 
@@ -116,6 +127,10 @@ type msg struct {
 	Time     uint32
 	Pt       point
 	LPrivate uint32
+}
+
+type rect struct {
+	Left, Top, Right, Bottom int32
 }
 
 type logfontw struct {
@@ -159,9 +174,7 @@ type guiState struct {
 
 	hwndMain   uintptr
 	hwndPort   uintptr
-	hwndStart  uintptr
-	hwndStop   uintptr
-	hwndOpen   uintptr
+	hwndToggle uintptr
 	hwndExit   uintptr
 	hwndStatus uintptr
 	hFont      uintptr
@@ -173,12 +186,17 @@ func (g *guiState) status(text string) {
 	}
 }
 
+func toggleButtonText(running bool) string {
+	if running {
+		return "停止服务"
+	}
+	return "启动服务"
+}
+
 func (g *guiState) refreshControls() {
 	running := g.app.running()
-	procEnableWindow.Call(g.hwndStart, uintptr(boolTo(running == false)))
-	procEnableWindow.Call(g.hwndStop, uintptr(boolTo(running)))
-	procEnableWindow.Call(g.hwndPort, uintptr(boolTo(running == false)))
-	procEnableWindow.Call(g.hwndOpen, uintptr(boolTo(running)))
+	procSetWindowTextW.Call(g.hwndToggle, uintptr(unsafe.Pointer(utf16Ptr(toggleButtonText(running)))))
+	procEnableWindow.Call(g.hwndPort, uintptr(boolTo(!running)))
 }
 
 func boolTo(value bool) int {
@@ -205,6 +223,14 @@ func (g *guiState) portFromEdit() (int, bool) {
 	return port, true
 }
 
+func (g *guiState) toggleServer() {
+	if g.app.running() {
+		g.stopServer()
+		return
+	}
+	g.startServer()
+}
+
 func (g *guiState) startServer() {
 	port, ok := g.portFromEdit()
 	if !ok {
@@ -220,7 +246,7 @@ func (g *guiState) startServer() {
 			uintptr(mbOK|mbIconError))
 		return
 	}
-	g.status(fmt.Sprintf("状态：运行中 · %s  （编辑器：%seditor/）", url, url))
+	g.status(fmt.Sprintf("状态：运行中 · %seditor/ · 点击此行可打开编辑器", url))
 	g.refreshControls()
 	if !g.noOpen {
 		go openBrowser(url + "editor/")
@@ -231,7 +257,7 @@ func (g *guiState) stopServer() {
 	if err := g.app.stop(); err != nil {
 		g.status(fmt.Sprintf("状态：停止时出现问题（%v）", err))
 	} else {
-		g.status("状态：已停止")
+		g.status("状态：已停止（可修改端口后重新启动）")
 	}
 	g.refreshControls()
 }
@@ -266,17 +292,14 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmCommand:
 		if hiword(wParam) == bnClicked {
 			switch loword(wParam) {
-			case idBtnStart:
-				g.startServer()
-				return 0
-			case idBtnStop:
-				g.stopServer()
-				return 0
-			case idBtnOpen:
-				g.openEditor()
+			case idBtnToggle:
+				g.toggleServer()
 				return 0
 			case idBtnExit:
 				g.quit()
+				return 0
+			case idStatusLine:
+				g.openEditor()
 				return 0
 			}
 		}
@@ -362,7 +385,16 @@ func runGUI(options guiOptions) {
 	copy(lf.FaceName[:], syscall.StringToUTF16("Segoe UI"))
 	fontHandle, _, _ = procCreateFontIndirectW.Call(uintptr(unsafe.Pointer(lf)))
 
-	windowWidth, windowHeight := int32(420), int32(252)
+	// Fixed-size window (no thick frame, no maximize box).
+	windowStyle := wsOverlappedWindow &^ 0x00050000
+
+	// Convert the desired client area into the outer window size so no
+	// control is ever clipped by the non-client frame.
+	frame := rect{Left: 0, Top: 0, Right: clientWidth, Bottom: clientHeight}
+	procAdjustWindowRectEx.Call(uintptr(unsafe.Pointer(&frame)), uintptr(windowStyle), 0, 0)
+	windowWidth := frame.Right - frame.Left
+	windowHeight := frame.Bottom - frame.Top
+
 	screenWidth, _, _ := procGetSystemMetrics.Call(smCxScreen)
 	screenHeight, _, _ := procGetSystemMetrics.Call(smCyScreen)
 	posX := (int32(screenWidth) - windowWidth) / 2
@@ -396,7 +428,7 @@ func runGUI(options guiOptions) {
 		0,
 		uintptr(unsafe.Pointer(utf16Ptr(className))),
 		uintptr(unsafe.Pointer(title)),
-		uintptr(wsOverlappedWindow&^0x00050000), // fixed size: no thick frame, no maximize
+		uintptr(windowStyle),
 		uintptr(posX), uintptr(posY), uintptr(windowWidth), uintptr(windowHeight),
 		0, 0, moduleInstance, 0)
 	if hwndMain == 0 {
@@ -405,27 +437,27 @@ func runGUI(options guiOptions) {
 	g.hwndMain = hwndMain
 
 	boldFont := uintptr(0)
-	lfTitle := &logfontw{Height: -20, Weight: 700, CharSet: 1}
+	lfTitle := &logfontw{Height: -19, Weight: 700, CharSet: 1}
 	copy(lfTitle.FaceName[:], syscall.StringToUTF16("Segoe UI"))
 	boldFont, _, _ = procCreateFontIndirectW.Call(uintptr(unsafe.Pointer(lfTitle)))
 
-	g.hwndStatus = createChild("STATIC", "状态：未启动（可先修改端口）", 0, 0, 24, 118, 356, 44, hwndMain)
-	titleLabel := createChild("STATIC", fmt.Sprintf("Dot Motion Builder  v%s", appVersion), 0, 0, 24, 18, 356, 30, hwndMain)
+	titleLabel := createChild("STATIC", fmt.Sprintf("Dot Motion Builder  v%s", appVersion), 0, 0, 24, 14, 372, 28, hwndMain)
 	if titleLabel != 0 && boldFont != 0 {
 		procSendMessageW.Call(titleLabel, wmSetFont, boldFont, 1)
 	}
-	createChild("STATIC", "点阵动画构建器 · 单文件本地版", 0, 0, 24, 52, 356, 20, hwndMain)
+	createChild("STATIC", "点阵动画构建器 · 单文件本地版", 0, 0, 24, 44, 372, 20, hwndMain)
 
-	createChild("STATIC", "端口", 0, 0, 24, 88, 34, 24, hwndMain)
-	g.hwndPort = createChild("EDIT", strconv.Itoa(g.initialPort), wsTabStop|wsBorder|uintptr(esNumber), idPortEdit, 62, 84, 96, 26, hwndMain)
+	createChild("STATIC", "端口", 0, 0, 24, 79, 40, 24, hwndMain)
+	g.hwndPort = createChild("EDIT", strconv.Itoa(g.initialPort), wsTabStop|wsBorder|uintptr(esNumber), idPortEdit, 70, 76, 104, 28, hwndMain)
 
-	g.hwndStart = createChild("BUTTON", "启动服务", wsTabStop, idBtnStart, 24, 168, 110, 36, hwndMain)
-	g.hwndStop = createChild("BUTTON", "停止服务", wsTabStop, idBtnStop, 144, 168, 110, 36, hwndMain)
-	g.hwndOpen = createChild("BUTTON", "打开编辑器", wsTabStop, idBtnOpen, 264, 168, 132, 36, hwndMain)
-	g.hwndExit = createChild("BUTTON", "退出", wsTabStop, idBtnExit, 24, 200, 372, 34, hwndMain)
+	g.hwndStatus = createChild("STATIC", "状态：未启动（可先修改端口）", uintptr(ssNotify|ssEditControl), idStatusLine, 24, 112, 372, 40, hwndMain)
+
+	// Bottom row: exactly two buttons — toggle (left) and exit (right).
+	g.hwndToggle = createChild("BUTTON", "启动服务", wsTabStop|uintptr(bsDefPushButton), idBtnToggle, 24, 164, 178, 44, hwndMain)
+	g.hwndExit = createChild("BUTTON", "退出", wsTabStop, idBtnExit, 218, 164, 178, 44, hwndMain)
 
 	g.refreshControls()
-	procSetFocus.Call(g.hwndStart)
+	procSetFocus.Call(g.hwndToggle)
 
 	procShowWindow.Call(hwndMain, swShow)
 	procUpdateWindow.Call(hwndMain)

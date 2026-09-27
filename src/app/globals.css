@@ -1265,6 +1265,233 @@ select {
   transform: translateX(calc(100% + 28px));
 }
 
+/* ---------------------------------------------------------------------------
+ * Settings panel: Photoshop-style chrome + dockable positions (left/bottom/right)
+ * ------------------------------------------------------------------------- */
+
+/* Neutral-gray Photoshop palette, scoped to the settings panel subtree. */
+.settings-sidebar {
+  --background: #232323;
+  --foreground: #d2d2d2;
+  --card: #2b2b2b;
+  --card-foreground: #d2d2d2;
+  --popover: #2b2b2b;
+  --popover-foreground: #d2d2d2;
+  --input: #212121;
+  --border: #3f3f3f;
+  --muted: #2a2a2a;
+  --muted-foreground: #9c9c9c;
+  --link: #5b9cf5;
+  --primary: #2f7ee8;
+  --primary-foreground: #ffffff;
+  --accent: #2f7ee8;
+  --accent-strong: #6ba3f7;
+  --accent-soft: rgba(47, 126, 232, 0.18);
+  --accent-border: rgba(47, 126, 232, 0.5);
+  --accent-text: #ffffff;
+  --control: #333333;
+  --control-quiet: rgba(255, 255, 255, 0.05);
+  --control-border: #4a4a4a;
+  --control-border-hover: rgba(47, 126, 232, 0.6);
+  --range-track: rgba(255, 255, 255, 0.24);
+  --range-fill: linear-gradient(90deg, #6ba3f7, #2f7ee8);
+  border-radius: 5px;
+}
+
+/* Opaque, square-ish panel surface like an Adobe docked panel. */
+.settings-sidebar .settings-toolcraft-panel {
+  border-color: #0e0e0e;
+  border-radius: 5px;
+  background: #2b2b2b;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 22px 56px -30px rgb(0 0 0 / 80%);
+}
+
+/* The dock strip fuses with the panel into a single unit when expanded. */
+.settings-sidebar:not(.is-collapsed) .settings-toolcraft-panel {
+  border-top-width: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.settings-sidebar.is-collapsed .settings-toolcraft-panel {
+  border-top-width: 1px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Panel header: darker tab-like bar. */
+.settings-sidebar [data-slot="properties-panel-header"] {
+  height: 32px;
+  background: linear-gradient(180deg, #3b3b3b, #343434);
+  border-bottom: 1px solid #161616;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.settings-sidebar [data-slot="properties-panel-header"] > p {
+  color: #cbcbcb;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Section headers: compact Photoshop group rows. */
+.settings-sidebar [data-slot="control-section-header"] {
+  height: 28px;
+  background: #303030;
+  border-bottom: 1px solid #1d1d1d;
+  transition: background-color 120ms ease;
+}
+
+.settings-sidebar [data-slot="control-section-header"]:hover {
+  background: #373737;
+}
+
+.settings-sidebar [data-slot="panel-title"] {
+  color: #a9a9a9;
+  letter-spacing: 0.07em;
+}
+
+.settings-sidebar [data-slot="toolcraft-panel-content"] > section {
+  border-top-color: #1d1d1d;
+}
+
+/* Dock strip (panel position switcher) — sits above the panel header. */
+.settings-dock-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 28px;
+  padding: 0 6px 0 12px;
+  border: 1px solid #0e0e0e;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(180deg, #262626, #1f1f1f);
+  color: #8f8f8f;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.settings-dock-strip__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-dock-strip__buttons {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.settings-dock-strip__button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #9a9a9a;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.settings-dock-strip__button:hover {
+  background: #333333;
+  color: #d2d2d2;
+}
+
+.settings-dock-strip__button.is-active {
+  background: rgba(47, 126, 232, 0.22);
+  border-color: rgba(47, 126, 232, 0.55);
+  color: #9ec6ff;
+}
+
+.settings-dock-strip__button svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Dock presets: left / bottom (right is the base layout). */
+.settings-sidebar[data-dock="left"] {
+  left: 16px;
+  right: auto;
+}
+
+.settings-sidebar[data-dock="bottom"] {
+  top: auto;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: auto;
+  height: min(340px, 46svh);
+}
+
+.settings-sidebar[data-dock="bottom"].is-collapsed {
+  width: auto;
+  height: 52px;
+}
+
+.settings-sidebar[data-dock="bottom"].is-hidden {
+  transform: translateY(calc(100% + 28px));
+}
+
+/* Bottom dock: sections flow as horizontally scrolling columns. */
+.settings-sidebar[data-dock="bottom"] [data-slot="toolcraft-panel-content"] {
+  flex-direction: row;
+  overflow-x: auto;
+  overflow-y: hidden;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.settings-sidebar[data-dock="bottom"] [data-slot="toolcraft-panel-content"] > section {
+  flex: 0 0 auto;
+  width: 316px;
+  border-top: 0;
+  border-right: 1px solid #1d1d1d;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Bottom dock: sticky action row becomes a compact right-aligned footer. */
+.settings-sidebar[data-dock="bottom"] [data-slot="toolcraft-panel-sticky-actions"] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 12px;
+}
+
+.settings-sidebar[data-dock="bottom"] [data-slot="toolcraft-panel-sticky-actions"] > section {
+  width: auto;
+  padding: 0;
+}
+
+.settings-sidebar[data-dock="bottom"] [data-slot="toolcraft-panel-sticky-actions"] .motion-preview-button {
+  width: auto;
+  min-width: 132px;
+}
+
+/* When the panel docks at the bottom, lift the floating canvas controls. */
+.builder-shell[data-settings-dock="bottom"] .language-switch {
+  top: 52px;
+  bottom: auto;
+}
+
+.builder-shell[data-settings-dock="bottom"] .canvas-center-button {
+  bottom: calc(min(340px, 46svh) + 32px);
+}
+
 .toolcraft-control-stack {
   display: flex;
   min-width: 0;
@@ -2355,7 +2582,44 @@ select {
     padding: 0;
   }
 
+  /* Narrow screens: every dock preset stacks below the canvas. */
+  .settings-sidebar[data-dock="left"],
+  .settings-sidebar[data-dock="right"],
+  .settings-sidebar[data-dock="bottom"] {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: auto;
+    height: 62svh;
+    min-height: 560px;
+  }
+
+  .settings-sidebar[data-dock="left"] [data-slot="toolcraft-panel-content"],
+  .settings-sidebar[data-dock="right"] [data-slot="toolcraft-panel-content"],
+  .settings-sidebar[data-dock="bottom"] [data-slot="toolcraft-panel-content"] {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .settings-sidebar[data-dock="bottom"] [data-slot="toolcraft-panel-content"] > section {
+    width: auto;
+    border-right: 0;
+    border-top: 1px solid #1d1d1d;
+    overflow-y: visible;
+  }
+
   .settings-sidebar.is-collapsed {
+    width: auto;
+    height: 52px;
+    min-height: 52px;
+  }
+
+  .settings-sidebar[data-dock="left"].is-collapsed,
+  .settings-sidebar[data-dock="right"].is-collapsed,
+  .settings-sidebar[data-dock="bottom"].is-collapsed {
     width: auto;
     height: 52px;
     min-height: 52px;

@@ -5,7 +5,7 @@
 > 衍生自 [LerSent001/dot-motion-builder](https://github.com/LerSent001/dot-motion-builder)；
 > 本项目以 **AGPL-3.0** 发布，全文见 [`LICENSE`](./LICENSE)。
 
-[![Release](https://img.shields.io/badge/release-v0.1.0-blue)](../../releases)
+[![Release](https://img.shields.io/badge/release-v0.1.1-blue)](../../releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-green)](./LICENSE)
 
 ---
@@ -66,8 +66,8 @@
 双击 exe 即出现控制面板：
 
 - **端口**：启动前可任意修改（默认 3000）。
-- **启动服务**：在本机端口拉起编辑器并自动打开浏览器。
-- **停止服务 / 打开编辑器 / 退出**：字面意思。
+- **启动服务**：在本机端口拉起编辑器并自动打开浏览器；运行中该按钮变为“停止服务”。
+- **退出**：字面意思。
 
 命令行参数仍然可用（在 cmd 中运行 `dot-motion-builder-windows-amd64.exe -version` 等）；
 `-nogui` 可强制回到纯控制台模式。

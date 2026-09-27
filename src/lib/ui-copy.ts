@@ -53,7 +53,11 @@ export const uiCopy = {
     importSucceeded: "项目已导入。",
     patternPreset: "图案模板",
     fillGridAction: "填满点阵",
-    clearGridAction: "清空点阵"
+    clearGridAction: "清空点阵",
+    panelPosition: "面板位置",
+    dockLeft: "停靠到左侧",
+    dockBottom: "停靠到底部",
+    dockRight: "停靠到右侧"
   },
   en: {
     add: "+ Add",
@@ -105,7 +109,11 @@ export const uiCopy = {
     importSucceeded: "Project imported.",
     patternPreset: "Pattern Presets",
     fillGridAction: "Fill grid",
-    clearGridAction: "Clear grid"
+    clearGridAction: "Clear grid",
+    panelPosition: "Panel position",
+    dockLeft: "Dock panel left",
+    dockBottom: "Dock panel bottom",
+    dockRight: "Dock panel right"
   }
 } as const;
 

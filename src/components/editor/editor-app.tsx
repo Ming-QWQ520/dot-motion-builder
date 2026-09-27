@@ -32,6 +32,40 @@ const inactiveStyles: Array<{ value: InactiveStyle }> = [
   { value: "breathe" },
   { value: "ghost" }
 ];
+
+type SettingsDock = "left" | "right" | "bottom";
+const settingsDockStorageKey = "dmb.settings-dock";
+
+function SettingsDockIcon({ dock }: { dock: SettingsDock }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {dock === "right" ? (
+        <>
+          <rect x="1.75" y="3" width="7" height="10" rx="1.2" />
+          <path d="M14.25 8h-3.5m0 0 1.6-1.6M10.75 8l1.6 1.6" />
+        </>
+      ) : dock === "left" ? (
+        <>
+          <rect x="7.25" y="3" width="7" height="10" rx="1.2" />
+          <path d="M1.75 8h3.5m0 0L3.65 6.4M5.25 8 3.65 9.6" />
+        </>
+      ) : (
+        <>
+          <rect x="3" y="1.75" width="10" height="7" rx="1.2" />
+          <path d="M8 14.25v-3.5m0 0L6.4 12.35M8 10.75l1.6 1.6" />
+        </>
+      )}
+    </svg>
+  );
+}
 const directionOptions: Array<{ value: Direction; label: string; icon: string }> = [
   { value: "up-left", label: "Bottom Right to Top Left", icon: "↖" },
   { value: "up", label: "Bottom to Top", icon: "↑" },
@@ -346,6 +380,7 @@ export function EditorApp() {
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const projectFileInputRef = useRef<HTMLInputElement>(null);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
+  const [settingsDock, setSettingsDock] = useState<SettingsDock>("right");
   const [previewScope, setPreviewScope] = useState<"none" | "selected" | "all">("none");
   const [language, setLanguage] = useState<Language>("cn");
   const [showZoomHud, setShowZoomHud] = useState(false);
@@ -381,6 +416,26 @@ export function EditorApp() {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(settingsDockStorageKey);
+      if (stored === "left" || stored === "right" || stored === "bottom") {
+        setSettingsDock(stored);
+      }
+    } catch {
+      // localStorage unavailable — keep the default dock position
+    }
+  }, []);
+
+  const changeSettingsDock = (dock: SettingsDock) => {
+    setSettingsDock(dock);
+    try {
+      window.localStorage.setItem(settingsDockStorageKey, dock);
+    } catch {
+      // ignore persistence failures
+    }
+  };
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -782,7 +837,7 @@ export function EditorApp() {
   }
 
   return (
-    <main className="builder-shell">
+    <main className="builder-shell" data-settings-dock={settingsDock}>
       <div className="builder-topbar">
         <a
           className="github-entry"
@@ -1002,12 +1057,39 @@ export function EditorApp() {
 
         </div>
 
-        <aside className={`settings-sidebar${hasSelection ? " is-open" : " is-hidden"}${propertiesCollapsed ? " is-collapsed" : ""}`} data-artboard-interactive="true">
+        <aside
+          className={`settings-sidebar${hasSelection ? " is-open" : " is-hidden"}${propertiesCollapsed ? " is-collapsed" : ""}`}
+          data-dock={settingsDock}
+          data-artboard-interactive="true"
+        >
+          {propertiesCollapsed ? null : (
+            <div className="settings-dock-strip" role="group" aria-label={t.panelPosition}>
+              <span className="settings-dock-strip__label">{t.panelPosition}</span>
+              <div className="settings-dock-strip__buttons">
+                {(["left", "bottom", "right"] as const).map((dock) => {
+                  const dockLabel = dock === "left" ? t.dockLeft : dock === "bottom" ? t.dockBottom : t.dockRight;
+                  return (
+                    <button
+                      key={dock}
+                      type="button"
+                      className={`settings-dock-strip__button${settingsDock === dock ? " is-active" : ""}`}
+                      onClick={() => changeSettingsDock(dock)}
+                      aria-pressed={settingsDock === dock}
+                      title={dockLabel}
+                      aria-label={dockLabel}
+                    >
+                      <SettingsDockIcon dock={dock} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <Panel
             title={t.settings}
-            className="settings-toolcraft-panel h-full max-h-none w-full rounded-lg"
+            className="settings-toolcraft-panel flex-1 min-h-0 max-h-none w-full rounded-lg"
             collapsed={propertiesCollapsed}
-            collapseDirection="right"
+            collapseDirection={settingsDock === "left" ? "left" : settingsDock === "right" ? "right" : "up"}
             collapseLabel={language === "cn" ? "收起参数面板" : "Collapse controls"}
             expandLabel={language === "cn" ? "展开参数面板" : "Expand controls"}
             onCollapsedChange={setPropertiesCollapsed}
